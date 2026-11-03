@@ -23,15 +23,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Capacitor & Generate Android Project
+      - name: Build APK with Capacitor
         run: |
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init EAN13TermoPrint com.ean13.termoprint --web-dir . --yes
           npx cap add android
-
-      - name: Build Debug APK
-        run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -39,5 +36,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EAN13-TermoPrint-APK
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
