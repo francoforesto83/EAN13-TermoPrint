@@ -12,14 +12,23 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build Android App (APK)
+    - name: Build Web App and Capacitor APK
       run: |
+        npm init -y
+        npm install @capacitor/core @capacitor/cli @capacitor/android
+        npx cap init EAN13TermoPrint com.ean13.termoprint --web-dir . --yes
+        npx cap add android
         cd android
         chmod +x gradlew
         ./gradlew assembleDebug
