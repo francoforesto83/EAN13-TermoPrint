@@ -27,7 +27,7 @@ jobs:
         run: |
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init EAN13TermoPrint com.ean13.termoprint --web-dir . --yes
+          npx cap init EAN13TermoPrint com.ean13.termoprint --web-dir .
           npx cap add android
           cd android
           chmod +x gradlew
