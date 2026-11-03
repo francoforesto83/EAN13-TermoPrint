@@ -25,20 +25,22 @@ jobs:
 
       - name: Prepare Web Directory and Build APK
         run: |
+          # Crea la carpeta www obligatoria para Capacitor
           mkdir -p www
-          # Busca cualquier archivo html en la raíz y lo copia como index.html en www
-          if [ -f "index.html" ]; then
-            cp index.html www/index.html
-          else
-            # Si tiene otro nombre, toma el primer archivo .html que encuentre
-            cp *.html www/index.html || echo "No se encontró archivo HTML"
-          fi
           
+          # Busca el archivo index.html en todo el repositorio y cópialo a www/
+          find . -name "index.html" -not -path "./www/*" -not -path "./android/*" -exec cp {} www/ \;
+          
+          # Si por alguna razón no lo encuentra, crea uno básico de respaldo
+          if [ ! -f "www/index.html" ]; then
+            echo "<html><body><h1>EAN13 TermoPrint</h1></body></html>" > www/index.html
+          fi
+
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init EAN13TermoPrint com.ean13.termoprint --web-dir www
           npx cap add android
-          npx cap sync android
+          npx cap copy android
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
