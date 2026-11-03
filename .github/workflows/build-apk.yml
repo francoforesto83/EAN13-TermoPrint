@@ -27,7 +27,6 @@ jobs:
         run: |
           mkdir -p www
           
-          # Si tu index.html está en app/src/main/assets/, lo usa; si está en la raíz, lo busca ahí
           if [ -f "app/src/main/assets/index.html" ]; then
             cp app/src/main/assets/index.html www/index.html
           elif [ -f "index.html" ]; then
@@ -42,10 +41,11 @@ jobs:
           npx cap add android
           npx cap copy android
           
-          # Configura Java 17 para Gradle
+          # Fuerza a Gradle a usar Java 17 y corregir la versión de source compatibility
           export JAVA_HOME=$JAVA_HOME_17
           
           cd android
+          echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
           chmod +x gradlew
           ./gradlew assembleDebug
 
