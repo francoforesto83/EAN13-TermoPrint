@@ -26,7 +26,14 @@ jobs:
       - name: Prepare Web Directory and Build APK
         run: |
           mkdir -p www
-          if [ -f "index.html" ]; then cp index.html www/; fi
+          # Busca cualquier archivo html en la raíz y lo copia como index.html en www
+          if [ -f "index.html" ]; then
+            cp index.html www/index.html
+          else
+            # Si tiene otro nombre, toma el primer archivo .html que encuentre
+            cp *.html www/index.html || echo "No se encontró archivo HTML"
+          fi
+          
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init EAN13TermoPrint com.ean13.termoprint --web-dir www
