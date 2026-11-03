@@ -1,0 +1,6 @@
+{
+  "name": "EAN13 TermoPrint",
+  "description": "Generador y gestor de códigos de barras EAN-13 para vendedores de Mercado Libre optimizado para mini impresoras térmicas de 58mm y 80mm.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

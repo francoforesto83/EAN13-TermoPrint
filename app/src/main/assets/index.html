@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>EAN-13 TermoPrint | Mercado Libre</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- JsBarcode via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ml: {
+              yellow: '#FFE600',
+              yellowDark: '#E5CF00',
+              blue: '#2D3277',
+              navy: '#1E2348',
+              gray: '#333333',
+              light: '#EBEBEB'
+            }
+          },
+          fontFamily: {
+            mono: ['Courier New', 'Courier', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos específicos para Impresoras Térmicas y Vista Previa */
+    .thermal-paper {
+      background-color: #ffffff;
+      color: #000000;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Ancho para 58mm (aprox 48mm imprimible) */
+    .width-58mm {
+      width: 58mm;
+      max-width: 100%;
+      padding: 3mm 2mm;
+      margin: 0 auto;
+    }
+
+    /* Ancho para 80mm (aprox 72mm imprimible) */
+    .width-80mm {
+      width: 80mm;
+      max-width: 100%;
+      padding: 4mm 3mm;
+      margin: 0 auto;
+    }
+
+    /* Reglas estrictas de impresión para impresoras térmicas ESC/POS */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      @page {
+        size: auto;
+        margin: 0mm;
+      }
+    }
+
+    /* Estilo de línea de corte térmico simulada */
+    .thermal-tear-line {
+      border-bottom: 2px dashed #bbb;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-16 antialiased selection:bg-yellow-200">
+
+  <!-- Header Mobile-First estilo Mercado Libre -->
+  <header class="bg-ml-yellow text-slate-900 border-b border-ml-yellowDark sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <div class="bg-ml-blue text-white p-1.5 rounded-lg shadow-sm">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold leading-tight tracking-tight text-slate-900">EAN-13 TermoPrint</h1>
+          <p class="text-xs font-medium text-slate-700">Mercado Libre & Mini Impresoras</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1">
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-ml-blue text-white shadow-xs">
+          58/80 mm
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="max-w-md mx-auto px-4 pt-4 space-y-4">
+
+    <!-- Card: Formulario de Generación -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-4 no-print">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-ml-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          Datos de la Etiqueta
+        </h2>
+        <button id="btn-quick-fill" type="button" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+          Cargar Ejemplo
+        </button>
+      </div>
+
+      <!-- Nombre del Producto -->
+      <div>
+        <label for="prod-name" class="block text-xs font-semibold text-slate-700 mb-1">Nombre del Producto / Publicación *</label>
+        <input type="text" id="prod-name" placeholder="Ej: Auriculares Bluetooth TWS i12" 
+          value="Auriculares Inalámbricos Bluetooth Pro"
+          class="w-full text-sm px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-ml-yellow focus:border-ml-blue focus:bg-white transition outline-none" />
+      </div>
+
+      <!-- Fila: Precio y SKU -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="prod-price" class="block text-xs font-semibold text-slate-700 mb-1">Precio ($) *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-sm">$</span>
+            <input type="text" id="prod-price" placeholder="12500" value="14999"
+              class="w-full text-sm pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-ml-yellow focus:border-ml-blue focus:bg-white transition outline-none font-semibold text-slate-900" />
+          </div>
+        </div>
+        <div>
+          <label for="prod-sku" class="block text-xs font-semibold text-slate-700 mb-1">SKU / Variante</label>
+          <input type="text" id="prod-sku" placeholder="AUR-BT-NEG" value="MLB-PRO-BLK"
+            class="w-full text-sm px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-ml-yellow focus:border-ml-blue focus:bg-white transition outline-none uppercase font-mono text-xs" />
+        </div>
+      </div>
+
+      <!-- Campo Código EAN-13 y Generación -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label for="prod-ean" class="text-xs font-semibold text-slate-700">Código EAN-13 (12 ó 13 dígitos) *</label>
+          <button id="btn-calc-check" type="button" class="text-[11px] text-blue-600 hover:underline font-medium">
+            Calcular Dígito
+          </button>
+        </div>
+        <div class="relative flex items-center">
+          <input type="text" id="prod-ean" maxlength="13" inputmode="numeric" placeholder="779123456789" value="779123456789"
+            class="w-full text-sm font-mono tracking-widest px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-ml-yellow focus:border-ml-blue focus:bg-white transition outline-none text-slate-900 pr-24" />
+          <button id="btn-random-ean" type="button" 
+            class="absolute right-1.5 px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition active:scale-95 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            Auto ML
+          </button>
+        </div>
+        <p id="ean-helper" class="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+          <span>Ingresa 12 dígitos y se calculará el 13° verificador.</span>
+          <span id="ean-status" class="font-semibold text-emerald-600">✓ Válido</span>
+        </p>
+      </div>
+
+      <!-- Configuración de Impresión Térmica -->
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-2.5">
+        <div class="text-xs font-bold text-slate-700 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Formato de Impresora Térmica
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="cursor-pointer">
+            <input type="radio" name="paper-size" value="58" checked class="peer sr-only">
+            <div class="text-center py-2 px-2 border-2 border-slate-200 rounded-xl peer-checked:border-ml-blue peer-checked:bg-blue-50/50 transition">
+              <span class="block text-xs font-bold text-slate-800">58 mm (2")</span>
+              <span class="block text-[10px] text-slate-500">Mini POS Bluetooth</span>
+            </div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="paper-size" value="80" class="peer sr-only">
+            <div class="text-center py-2 px-2 border-2 border-slate-200 rounded-xl peer-checked:border-ml-blue peer-checked:bg-blue-50/50 transition">
+              <span class="block text-xs font-bold text-slate-800">80 mm (3")</span>
+              <span class="block text-[10px] text-slate-500">Impresora Estándar</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Opciones de Contenido de Etiqueta -->
+        <div class="grid grid-cols-2 gap-2 pt-1 text-xs">
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" id="chk-show-price" checked class="rounded text-ml-blue focus:ring-ml-yellow">
+            <span class="text-slate-700">Mostrar Precio</span>
+          </label>
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" id="chk-show-sku" checked class="rounded text-ml-blue focus:ring-ml-yellow">
+            <span class="text-slate-700">Mostrar SKU / ML</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Botón Generar / Actualizar -->
+      <button id="btn-generate" type="button"
+        class="w-full bg-ml-blue hover:bg-ml-navy active:scale-[0.99] text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition duration-150">
+        <svg class="w-5 h-5 text-ml-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Generar y Guardar Etiqueta
+      </button>
+    </section>
+
+    <!-- Card: Vista Previa Térmica & Acciones de Impresión -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2 no-print">
+        <div class="flex items-center space-x-2">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Vista Previa de Etiqueta</h2>
+        </div>
+        <span id="preview-size-badge" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border">
+          Papel: 58mm
+        </span>
+      </div>
+
+      <!-- Contenedor de la Etiqueta Térmica Real (Optimizado para impresión monocromática) -->
+      <div class="bg-slate-200/60 p-3 rounded-xl flex justify-center items-center overflow-x-auto">
+        <div id="print-area" class="thermal-paper width-58mm text-center select-none border border-black/10">
+          
+          <!-- Encabezado de Etiqueta -->
+          <div class="pt-1 pb-1 px-1">
+            <div class="text-[9px] font-bold tracking-widest uppercase border-b border-black pb-0.5 mb-1 text-black flex justify-between items-center">
+              <span>MERCADO LIBRE</span>
+              <span id="lbl-tag-variant" class="font-mono text-[8px]">FULL</span>
+            </div>
+            <!-- Nombre del Producto -->
+            <p id="lbl-name" class="font-bold text-[12px] leading-tight text-black line-clamp-2 uppercase">
+              Auriculares Inalámbricos Bluetooth Pro
+            </p>
+          </div>
+
+          <!-- Código de Barras SVG (JsBarcode) -->
+          <div class="my-1 flex flex-col items-center justify-center">
+            <svg id="barcode-svg" class="max-w-full h-auto mx-auto"></svg>
+          </div>
+
+          <!-- Precio Destacado y SKU -->
+          <div class="pt-1 px-1 pb-1 border-t border-black">
+            <div id="lbl-price-container" class="flex items-baseline justify-center gap-1">
+              <span class="text-[10px] font-bold">PRECIO:</span>
+              <span id="lbl-price" class="text-[16px] font-black tracking-tight font-mono">$ 14.999</span>
+            </div>
+            <div id="lbl-sku-container" class="text-[9px] font-mono font-bold text-black flex justify-between items-center pt-0.5">
+              <span>SKU: <span id="lbl-sku">MLB-PRO-BLK</span></span>
+              <span id="lbl-date" class="text-[8px] text-black">03/11</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Botones de Acción de Impresión Mobile-First -->
+      <div class="grid grid-cols-2 gap-3 no-print pt-1">
+        <button id="btn-print" type="button"
+          class="col-span-2 sm:col-span-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3.5 px-4 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Imprimir Térmica
+        </button>
+
+        <button id="btn-share" type="button"
+          class="col-span-2 sm:col-span-1 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white py-3.5 px-4 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition">
+          <svg class="w-5 h-5 text-ml-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+          Compartir / RawBT
+        </button>
+      </div>
+
+      <!-- Ayuda para impresoras Bluetooth térmicas -->
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 no-print flex gap-2.5 items-start">
+        <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p class="leading-relaxed">
+          <strong>Tip de Impresión:</strong> Conecta tu mini impresora Bluetooth en Ajustes. Al pulsar <em>Imprimir Térmica</em>, selecciona tu impresora o la app de servicio térmico (RawBT, POS-58, etc.). El tamaño se adapta automáticamente.
+        </p>
+      </div>
+    </section>
+
+    <!-- Card: Historial y Almacenamiento Local (localStorage) -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3 no-print">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <div class="flex items-center space-x-2">
+          <svg class="w-4 h-4 text-ml-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Historial Guardado</h2>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span id="history-count" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">0</span>
+          <button id="btn-clear-history" type="button" class="text-xs text-red-500 hover:text-red-700 font-medium">
+            Borrar Todo
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de búsqueda en historial -->
+      <div class="relative">
+        <input type="text" id="search-history" placeholder="Buscar por producto, SKU o código..."
+          class="w-full text-xs px-3 py-2 pl-8 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-ml-yellow outline-none" />
+        <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+
+      <!-- Lista de elementos del historial -->
+      <div id="history-list" class="space-y-2 max-h-64 overflow-y-auto pr-1 divide-y divide-slate-100">
+        <!-- Renderizado dinámicamente -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Lógica JavaScript pura (Cliente-side completo) -->
+  <script>
+    (function() {
+      'use strict';
+
+      // Clave para almacenamiento en localStorage
+      const STORAGE_KEY = 'ean13_ml_history_v1';
+
+      // Elementos del DOM
+      const prodNameInput = document.getElementById('prod-name');
+      const prodPriceInput = document.getElementById('prod-price');
+      const prodSkuInput = document.getElementById('prod-sku');
+      const prodEanInput = document.getElementById('prod-ean');
+      const eanStatusEl = document.getElementById('ean-status');
+      const btnCalcCheck = document.getElementById('btn-calc-check');
+      const btnRandomEan = document.getElementById('btn-random-ean');
+      const btnQuickFill = document.getElementById('btn-quick-fill');
+      const btnGenerate = document.getElementById('btn-generate');
+      const btnPrint = document.getElementById('btn-print');
+      const btnShare = document.getElementById('btn-share');
+      const btnClearHistory = document.getElementById('btn-clear-history');
+      const searchHistoryInput = document.getElementById('search-history');
+      const historyListEl = document.getElementById('history-list');
+      const historyCountEl = document.getElementById('history-count');
+      const printArea = document.getElementById('print-area');
+      const previewSizeBadge = document.getElementById('preview-size-badge');
+      const barcodeSvg = document.getElementById('barcode-svg');
+
+      // Elementos de la etiqueta de vista previa
+      const lblName = document.getElementById('lbl-name');
+      const lblPrice = document.getElementById('lbl-price');
+      const lblSku = document.getElementById('lbl-sku');
+      const lblDate = document.getElementById('lbl-date');
+      const chkShowPrice = document.getElementById('chk-show-price');
+      const chkShowSku = document.getElementById('chk-show-sku');
+      const lblPriceContainer = document.getElementById('lbl-price-container');
+      const lblSkuContainer = document.getElementById('lbl-sku-container');
+
+      /**
+       * Calcula el dígito verificador estándar EAN-13 (GS1 Módulo 10)
+       * @param {string} digits12 - Cadena con 12 números
+       * @returns {number} Dígito verificador (0-9)
+       */
+      function calculateEan13CheckDigit(digits12) {
+        if (!/^\d{12}$/.test(digits12)) {
+          return null;
+        }
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+          const num = parseInt(digits12[i], 10);
+          // Posición impar (1-indexada): peso 1 (0, 2, 4...)
+          // Posición par (1-indexada): peso 3 (1, 3, 5...)
+          sum += (i % 2 === 0) ? num : (num * 3);
+        }
+        const remainder = sum % 10;
+        return remainder === 0 ? 0 : 10 - remainder;
+      }
+
+      /**
+       * Valida si un código de 13 dígitos cumple la regla EAN-13
+       * @param {string} ean13 
+       * @returns {boolean}
+       */
+      function isValidEan13(ean13) {
+        if (!/^\d{13}$/.test(ean13)) return false;
+        const check = calculateEan13CheckDigit(ean13.substring(0, 12));
+        return check === parseInt(ean13[12], 10);
+      }
+
+      /**
+       * Genera un código EAN-13 válido aleatorio con prefijo común (779 Argentina / 750 México / 789 Brasil o ML)
+       */
+      function generateRandomValidEan13() {
+        // Prefijo estándar 779 (o 750 / 789)
+        const prefix = '779';
+        let body = prefix;
+        while (body.length < 12) {
+          body += Math.floor(Math.random() * 10).toString();
+        }
+        const checkDigit = calculateEan13CheckDigit(body);
+        return body + checkDigit;
+      }
+
+      /**
+       * Renderiza el código de barras usando JsBarcode con fallback a render nativo si falta
+       */
+      function renderBarcode(code, paperSize) {
+        if (!barcodeSvg) return;
+
+        // Limpiar contenido previo
+        barcodeSvg.innerHTML = '';
+
+        const is58 = paperSize === '58';
+        const barcodeWidth = is58 ? 1.4 : 1.9;
+        const barcodeHeight = is58 ? 44 : 56;
+        const fontSize = is58 ? 13 : 15;
+
+        try {
+          if (typeof JsBarcode === 'function') {
+            JsBarcode(barcodeSvg, code, {
+              format: "EAN13",
+              lineColor: "#000000",
+              width: barcodeWidth,
+              height: barcodeHeight,
+              displayValue: true,
+              fontSize: fontSize,
+              font: "monospace",
+              textMargin: 2,
+              margin: 4,
+              flat: true
+            });
+          } else {
+            // Fallback visual en caso de que el CDN tarde o no esté disponible
+            renderFallbackBarcode(code);
+          }
+        } catch (err) {
+          console.warn('JsBarcode EAN13 fallback a CODE128 o simple:', err);
+          try {
+            JsBarcode(barcodeSvg, code, {
+              format: "CODE128",
+              width: barcodeWidth,
+              height: barcodeHeight,
+              displayValue: true,
+              fontSize: fontSize
+            });
+          } catch(e2) {
+            barcodeSvg.innerHTML = `<text x="10" y="25" font-family="monospace" font-size="12">ERROR BARCODE: ${code}</text>`;
+          }
+        }
+      }
+
+      // Renderizador SVG minimalista de respaldo si no hay conexión a CDN
+      function renderFallbackBarcode(code) {
+        barcodeSvg.setAttribute('viewBox', '0 0 200 60');
+        barcodeSvg.setAttribute('width', '100%');
+        barcodeSvg.setAttribute('height', '60');
+        let rects = '';
+        let x = 10;
+        for (let i = 0; i < code.length; i++) {
+          const val = parseInt(code[i], 10) || 1;
+          const w = (val % 3) + 1;
+          rects += `<rect x="${x}" y="5" width="${w}" height="40" fill="#000" />`;
+          x += w + 2;
+        }
+        rects += `<text x="50" y="55" font-family="monospace" font-size="12" fill="#000">${code}</text>`;
+        barcodeSvg.innerHTML = rects;
+      }
+
+      /**
+       * Obtiene el tamaño de papel seleccionado (58 ó 80)
+       */
+      function getSelectedPaperSize() {
+        const checkedRadio = document.querySelector('input[name="paper-size"]:checked');
+        return checkedRadio ? checkedRadio.value : '58';
+      }
+
+      /**
+       * Actualiza la vista previa de la etiqueta térmica
+       */
+      function updatePreview() {
+        const name = prodNameInput.value.trim() || 'PRODUCTO MERCADO LIBRE';
+        const price = prodPriceInput.value.trim() || '0';
+        const sku = prodSkuInput.value.trim() || 'SIN-SKU';
+        let ean = prodEanInput.value.replace(/\D/g, '');
+
+        // Validación y autocompletado si hay 12 dígitos
+        if (ean.length === 12) {
+          const check = calculateEan13CheckDigit(ean);
+          ean += check;
+          prodEanInput.value = ean;
+        }
+
+        // Estado del código
+        if (isValidEan13(ean)) {
+          eanStatusEl.textContent = '✓ EAN-13 Válido';
+          eanStatusEl.className = 'font-semibold text-emerald-600';
+        } else if (ean.length === 12) {
+          eanStatusEl.textContent = 'Calculando 13°...';
+          eanStatusEl.className = 'font-semibold text-blue-600';
+        } else {
+          eanStatusEl.textContent = '⚠ Requiere 12 ó 13 dígitos';
+          eanStatusEl.className = 'font-semibold text-amber-600';
+        }
+
+        // Actualizar textos en etiqueta térmica
+        lblName.textContent = name;
+        
+        // Formatear precio con signo de pesos
+        const numPrice = parseFloat(price.replace(/[^0-9.]/g, ''));
+        if (!isNaN(numPrice)) {
+          lblPrice.textContent = '$ ' + numPrice.toLocaleString('es-AR');
+        } else {
+          lblPrice.textContent = '$ ' + price;
+        }
+
+        lblSku.textContent = sku;
+
+        // Fecha actual
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        lblDate.textContent = `${day}/${month}`;
+
+        // Opciones de visibilidad
+        lblPriceContainer.style.display = chkShowPrice.checked ? 'flex' : 'none';
+        lblSkuContainer.style.display = chkShowSku.checked ? 'flex' : 'none';
+
+        // Ajustar ancho de papel
+        const paperSize = getSelectedPaperSize();
+        if (paperSize === '80') {
+          printArea.classList.remove('width-58mm');
+          printArea.classList.add('width-80mm');
+          previewSizeBadge.textContent = 'Papel: 80mm';
+        } else {
+          printArea.classList.remove('width-80mm');
+          printArea.classList.add('width-58mm');
+          previewSizeBadge.textContent = 'Papel: 58mm';
+        }
+
+        // Renderizar código de barras si tiene longitud aceptable
+        if (ean.length >= 12) {
+          const codeToRender = ean.length === 13 ? ean : (ean + calculateEan13CheckDigit(ean));
+          renderBarcode(codeToRender, paperSize);
+        }
+      }
+
+      /**
+       * Gestión de LocalStorage: Historial
+       */
+      function getHistory() {
+        try {
+          const data = localStorage.getItem(STORAGE_KEY);
+          return data ? JSON.parse(data) : [];
+        } catch (e) {
+          console.error('Error al leer localStorage:', e);
+          return [];
+        }
+      }
+
+      function saveHistory(list) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+          renderHistory();
+        } catch (e) {
+          console.error('Error al guardar localStorage:', e);
+        }
+      }
+
+      function addToHistory(item) {
+        let history = getHistory();
+        // Filtrar duplicados por código EAN
+        history = history.filter(h => h.ean !== item.ean);
+        // Agregar al inicio
+        history.unshift(item);
+        // Limitar a los últimos 60 registros
+        if (history.length > 60) {
+          history = history.slice(0, 60);
+        }
+        saveHistory(history);
+      }
+
+      function deleteFromHistory(ean) {
+        let history = getHistory();
+        history = history.filter(h => h.ean !== ean);
+        saveHistory(history);
+      }
+
+      function clearAllHistory() {
+        if (confirm('¿Deseas vaciar todo el historial de códigos guardados?')) {
+          localStorage.removeItem(STORAGE_KEY);
+          renderHistory();
+        }
+      }
+
+      function renderHistory() {
+        const history = getHistory();
+        const filter = (searchHistoryInput.value || '').toLowerCase().trim();
+        historyListEl.innerHTML = '';
+
+        const filtered = history.filter(item => {
+          return item.name.toLowerCase().includes(filter) ||
+                 item.sku.toLowerCase().includes(filter) ||
+                 item.ean.includes(filter);
+        });
+
+        historyCountEl.textContent = filtered.length;
+
+        if (filtered.length === 0) {
+          historyListEl.innerHTML = `
+            <div class="py-6 text-center text-slate-400 text-xs">
+              ${filter ? 'No se encontraron coincidencias.' : 'Sin etiquetas guardadas en el historial.'}
+            </div>
+          `;
+          return;
+        }
+
+        filtered.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'py-2.5 flex items-center justify-between text-xs hover:bg-slate-50 transition px-1 rounded-lg';
+          div.innerHTML = `
+            <div class="flex-1 min-w-0 pr-2 cursor-pointer load-item" data-ean="${item.ean}">
+              <div class="font-bold text-slate-800 truncate">${escapeHtml(item.name)}</div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-500 font-mono mt-0.5">
+                <span class="text-slate-900 font-bold">$${escapeHtml(item.price)}</span>
+                <span>•</span>
+                <span class="bg-slate-100 px-1 rounded text-slate-700">${escapeHtml(item.sku)}</span>
+                <span>•</span>
+                <span class="text-blue-700 font-semibold">${escapeHtml(item.ean)}</span>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1 shrink-0">
+              <button title="Cargar y Ver" class="load-btn p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" data-ean="${item.ean}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+              <button title="Eliminar" class="del-btn p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" data-ean="${item.ean}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          `;
+          historyListEl.appendChild(div);
+        });
+
+        // Eventos a los botones de la lista
+        historyListEl.querySelectorAll('.load-item, .load-btn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const ean = this.getAttribute('data-ean');
+            loadItemToForm(ean);
+          });
+        });
+
+        historyListEl.querySelectorAll('.del-btn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const ean = this.getAttribute('data-ean');
+            deleteFromHistory(ean);
+          });
+        });
+      }
+
+      function loadItemToForm(ean) {
+        const history = getHistory();
+        const item = history.find(h => h.ean === ean);
+        if (item) {
+          prodNameInput.value = item.name;
+          prodPriceInput.value = item.price;
+          prodSkuInput.value = item.sku;
+          prodEanInput.value = item.ean;
+          if (item.paperSize) {
+            const radio = document.querySelector(`input[name="paper-size"][value="${item.paperSize}"]`);
+            if (radio) radio.checked = true;
+          }
+          updatePreview();
+          // Scroll suave hasta la vista previa
+          printArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+
+      function escapeHtml(str) {
+        return (str || '').replace(/[&<>"']/g, function(m) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+        });
+      }
+
+      /**
+       * Disparo de Impresión Optimizada
+       */
+      function triggerPrint() {
+        updatePreview();
+        // Disparar diálogo nativo del navegador configurado con @media print
+        window.print();
+      }
+
+      /**
+       * Compartir mediante Web Share API o copiar código
+       */
+      async function triggerShare() {
+        const name = prodNameInput.value.trim();
+        const price = prodPriceInput.value.trim();
+        const ean = prodEanInput.value.trim();
+        const sku = prodSkuInput.value.trim();
+        const text = `Etiqueta Mercado Libre:\nProducto: ${name}\nPrecio: $${price}\nSKU: ${sku}\nCódigo EAN-13: ${ean}`;
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: `EAN-13: ${name}`,
+              text: text
+            });
+          } catch (err) {
+            if (err.name !== 'AbortError') {
+              copyToClipboard(text);
+            }
+          }
+        } else {
+          copyToClipboard(text);
+        }
+      }
+
+      function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert('¡Datos de la etiqueta copiados al portapapeles!');
+        }).catch(() => {
+          alert(text);
+        });
+      }
+
+      // Inicialización de eventos
+      prodNameInput.addEventListener('input', updatePreview);
+      prodPriceInput.addEventListener('input', updatePreview);
+      prodSkuInput.addEventListener('input', updatePreview);
+      
+      prodEanInput.addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '');
+        updatePreview();
+      });
+
+      chkShowPrice.addEventListener('change', updatePreview);
+      chkShowSku.addEventListener('change', updatePreview);
+
+      document.querySelectorAll('input[name="paper-size"]').forEach(r => {
+        r.addEventListener('change', updatePreview);
+      });
+
+      // Botón: Calcular Dígito Verificador si hay 12 dígitos
+      btnCalcCheck.addEventListener('click', function() {
+        let val = prodEanInput.value.replace(/\D/g, '');
+        if (val.length >= 12) {
+          const d12 = val.substring(0, 12);
+          const check = calculateEan13CheckDigit(d12);
+          prodEanInput.value = d12 + check;
+          updatePreview();
+        } else {
+          alert('Ingresa al menos 12 dígitos numéricos para calcular el dígito verificador.');
+        }
+      });
+
+      // Botón: Generar EAN Aleatorio Válido para ML
+      btnRandomEan.addEventListener('click', function() {
+        const newEan = generateRandomValidEan13();
+        prodEanInput.value = newEan;
+        updatePreview();
+      });
+
+      // Botón: Cargar Ejemplo
+      btnQuickFill.addEventListener('click', function() {
+        const examples = [
+          { name: 'Auriculares Inalámbricos Bluetooth Pro', price: '14999', sku: 'MLB-PRO-BLK', ean: '779123456789' },
+          { name: 'Termo Acero Inoxidable 1L Doble Capa', price: '28500', sku: 'TERMO-1000-VER', ean: '779876543210' },
+          { name: 'Mate Térmico con Bombilla Acero', price: '9900', sku: 'MATE-TERM-AZL', ean: '779555666777' },
+          { name: 'Funda Protectora Silicona Slim Fit', price: '4500', sku: 'FND-SIL-TRANSP', ean: '779333222111' }
+        ];
+        const randomItem = examples[Math.floor(Math.random() * examples.length)];
+        prodNameInput.value = randomItem.name;
+        prodPriceInput.value = randomItem.price;
+        prodSkuInput.value = randomItem.sku;
+        // Calcular dígito si son 12
+        const check = calculateEan13CheckDigit(randomItem.ean.substring(0, 12));
+        prodEanInput.value = randomItem.ean.substring(0, 12) + check;
+        updatePreview();
+      });
+
+      // Botón: Generar y Guardar
+      btnGenerate.addEventListener('click', function() {
+        let ean = prodEanInput.value.replace(/\D/g, '');
+        if (ean.length === 12) {
+          ean += calculateEan13CheckDigit(ean);
+          prodEanInput.value = ean;
+        }
+
+        if (!isValidEan13(ean)) {
+          alert('El código ingresado no es un EAN-13 válido. Revisa los 13 dígitos o usa el botón "Auto ML".');
+          return;
+        }
+
+        const item = {
+          name: prodNameInput.value.trim() || 'Producto Sin Nombre',
+          price: prodPriceInput.value.trim() || '0',
+          sku: prodSkuInput.value.trim() || 'SKU',
+          ean: ean,
+          paperSize: getSelectedPaperSize(),
+          date: new Date().toISOString()
+        };
+
+        addToHistory(item);
+        updatePreview();
+        alert('✓ Etiqueta guardada con éxito en el historial.');
+      });
+
+      btnPrint.addEventListener('click', triggerPrint);
+      btnShare.addEventListener('click', triggerShare);
+      btnClearHistory.addEventListener('click', clearAllHistory);
+      searchHistoryInput.addEventListener('input', renderHistory);
+
+      // Carga inicial y datos de muestra si está vacío
+      if (getHistory().length === 0) {
+        saveHistory([
+          { name: 'Auriculares Inalámbricos Bluetooth Pro', price: '14999', sku: 'MLB-PRO-BLK', ean: '7791234567897', paperSize: '58' },
+          { name: 'Termo Acero Inoxidable 1L Doble Capa', price: '28500', sku: 'TERMO-1000-VER', ean: '7798765432101', paperSize: '58' }
+        ]);
+      }
+
+      renderHistory();
+      updatePreview();
+
+    })();
+  </script>
+</body>
+</html>
